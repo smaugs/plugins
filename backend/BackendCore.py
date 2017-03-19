@@ -327,7 +327,7 @@ class Backend:
         else:
             conf_code = ''
             yaml_code = ''
-        return self.render_template('conf_yaml_converter.html')
+        return self.render_template('conf_yaml_converter.html', conf_code=conf_code, yaml_code=yaml_code)
 
 
     # -----------------------------------------------------------------------------------
@@ -352,7 +352,8 @@ class Backend:
         parent_items_sorted = []
         for item in items_sorted:
             if "." not in item._path:
-                parent_items_sorted.append(item)
+                if item._name not in ['env_daily', 'env_init', 'env_loc', 'env_stat'] and item._type == 'foo':
+                    parent_items_sorted.append(item)
 
         item_data = self._build_item_tree(parent_items_sorted)
         return json.dumps(item_data)
@@ -1010,6 +1011,7 @@ class Backend:
 
         clients_sorted = sorted(clients, key=lambda k: k['name'])
 
+        self.find_visu_plugin()
         return self.render_template('visu.html', 
                                     visu_plugin_build=self.visu_plugin_build,
                                     clients=clients_sorted)
