@@ -25,6 +25,7 @@
 import logging
 import json
 import os
+import html
 import collections
 from collections import OrderedDict
 
@@ -98,13 +99,6 @@ def load_translation(language):
     return True
 
 
-def html_escape(str):
-    str = str.rstrip().replace('<', '&lt;').replace('>', '&gt;')
-    str = str.rstrip().replace('(', '&#40;').replace(')', '&#41;')
-    html = str.rstrip().replace("'", '&#39;').replace('"', '&quot;')
-    return html
-
-
 def _get_translation_for_block(lang, txt, block):
     """
     """
@@ -159,7 +153,7 @@ def translate(txt, block=''):
         if tr == '':
             logger.info("Backend: -> Language '{0}': Translation for '{1}' is missing".format(translation_lang, txt))
             tr = txt
-    return html_escape(tr)
+    return html.escape(tr)
 
 
 def create_hash(plaintext):
@@ -170,10 +164,21 @@ def create_hash(plaintext):
 
 
 def parse_requirements(file_path):
-    fobj = open(file_path)
     req_dict = {}
-    for line in fobj:
-        if len(line) > 0 and '#' not in line:
+    try:
+        fobj = open(file_path)
+    except:
+        return req_dict
+
+    for rline in fobj:
+        line = ''
+        if len(rline) > 0:
+            if rline.find('#') == -1:
+                line = rline.lower().strip()
+            else:
+                line = line[0:line.find("#")].lower().strip()
+            
+        if len(line) > 0:
             if ">" in line:
                 if line[0:line.find(">")].lower().strip() in req_dict:
                     req_dict[line[0:line.find(">")].lower().strip()] += " | " + line[line.find(">"):len(
@@ -192,6 +197,9 @@ def parse_requirements(file_path):
                         line)].lower().strip()
                 else:
                     req_dict[line[0:line.find("=")].lower().strip()] = line[line.find("="):len(line)].lower().strip()
+            else:
+                req_dict[line.lower().strip()] = '==*'
+
     fobj.close()
     return req_dict
 

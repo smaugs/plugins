@@ -70,8 +70,7 @@ class BackendItems:
             parent_items_sorted = []
             for item in items_sorted:
                 if "." not in item._path:
-                    if item._name not in ['env_daily', 'env_init', 'env_loc', 'env_stat'] and item._type == 'foo':
-                        parent_items_sorted.append(item)
+                    parent_items_sorted.append(item)
 
             item_data = self._build_item_tree(parent_items_sorted)
             return json.dumps(item_data)
@@ -91,11 +90,17 @@ class BackendItems:
         from os import listdir
         from os.path import isfile, join
         onlyfiles = [f for f in listdir(cache_path) if isfile(join(cache_path, f))]
-        not_item_related_cache_files = []
+        unused_cache_files = []
         for file in onlyfiles:
             if not file.find(".") == 0:  # filter .gitignore etc.
                 item = self._sh.return_item(file)
+                no_cache_file = False;
                 if item is None:
+                    no_cache_file = True
+                elif not item._cache:
+                    no_cache_file = True
+
+                if no_cache_file:
                     file_data = {}
                     file_data['last_modified'] = datetime.datetime.fromtimestamp(
                         int(os.path.getmtime(cache_path + file))
@@ -104,9 +109,10 @@ class BackendItems:
                         int(os.path.getctime(cache_path + file))
                     ).strftime('%Y-%m-%d %H:%M:%S')
                     file_data['filename'] = file
-                    not_item_related_cache_files.append(file_data)
+                    file_data['filename'] = file
+                    unused_cache_files.append(file_data)
 
-        return json.dumps(not_item_related_cache_files)
+        return json.dumps(unused_cache_files)
 
     @cherrypy.expose
     def cache_file_delete_html(self, filename=''):
@@ -120,10 +126,6 @@ class BackendItems:
         return
 
     @cherrypy.expose
-    def create_hash_json_html(self, plaintext):
-        return json.dumps(create_hash(plaintext))
-
-    @cherrypy.expose
     def item_change_value_html(self, item_path, value):
         """
         Is called by items.html when an item value has been changed
@@ -131,6 +133,11 @@ class BackendItems:
         item_data = []
         item = self._sh.return_item(item_path)
         if self.updates_allowed:
+            if 'num' in item.type():
+                if "." in value or "," in value:
+                    value = float(value)
+                else:
+                    value = int(value)
             item(value, caller='Backend')
 
         return
@@ -189,6 +196,44 @@ class BackendItems:
                     hours = hours - 24 * days
         return self.age_to_string(days, hours, minutes, seconds)
 
+
+    def list_to_displaystring(self, l):
+        """
+        """
+        if type(l) is str:
+            return l
+        
+        edit_string = ''
+        for entry in l:
+            if edit_string != '':
+                edit_string += ' | '
+            edit_string += str(entry)
+        if edit_string == '':
+            edit_string = '-'
+#        self.logger.info("list_to_displaystring: >{}<  -->  >{}<".format(l, edit_string))
+        return edit_string
+
+
+    def build_on_list(self, on_dest_list, on_eval_list):
+        """
+        build on_xxx data
+        """
+        on_list = []
+        if on_dest_list is not None:
+            if isinstance(on_dest_list, list):
+                for on_dest, on_eval in zip(on_dest_list, on_eval_list):
+                    if on_dest != '':
+                        on_list.append( on_dest + ' = ' + on_eval )
+                    else:
+                        on_list.append( on_eval )
+            else:
+                if on_dest_list != '':
+                    on_list.append( on_dest_list + ' = ' + on_eval_list )
+                else:
+                    on_list.append( on_eval_list )
+        return on_list
+
+
     @cherrypy.expose
     def item_detail_json_html(self, item_path):
         """
@@ -220,6 +265,10 @@ class BackendItems:
                     if self._sh.scheduler._scheduler[entry]['cron']:
                         crontab = html.escape(str(self._sh.scheduler._scheduler[entry]['cron']))
                     break
+            if cycle == '':
+                cycle = '-'
+            if crontab == '':
+                crontab = '-'
 
             changed_by = item.changed_by()
             if changed_by[-5:] == ':None':
@@ -228,7 +277,12 @@ class BackendItems:
             if item.prev_age() < 0:
                 prev_age = ''
             else:
-                prev_age = self.disp_age(item.prev_age())
+                prev_age = self.disp_age(item.prev_update_age())
+            if item.prev_update_age() < 0:
+                prev_update_age = ''
+            else:
+                prev_update_age = self.disp_age(item.prev_update_age())
+
             if str(item._cache) == 'False':
                 cache = 'off'
             else:
@@ -240,32 +294,47 @@ class BackendItems:
 
             item_conf_sorted = collections.OrderedDict(sorted(item.conf.items(), key=lambda t: str.lower(t[0])))
             if item_conf_sorted.get('sv_widget', '') != '':
-                item_conf_sorted['sv_widget'] = self.html_escape(item_conf_sorted['sv_widget'])
+                item_conf_sorted['sv_widget'] = html.escape(item_conf_sorted['sv_widget'])
 
             logics = []
             for trigger in item.get_logic_triggers():
-                logics.append(self.html_escape(format(trigger)))
+                logics.append(html.escape(format(trigger)))
             triggers = []
             for trigger in item.get_method_triggers():
                 trig = format(trigger)
                 trig = trig[1:len(trig) - 27]
-                triggers.append(self.html_escape(format(trig.replace("<", ""))))
+                triggers.append(html.escape(format(trig.replace("<", ""))))
 
+            try:
+                upd_age = item.update_age()
+            except:
+                # if used lib.items doesn't support update_age() function
+                upd_age = item.age()
+            
+            # build on_update and on_change data
+            on_update_list = self.build_on_list(item._on_update_dest_var, item._on_update)
+            on_change_list = self.build_on_list(item._on_change_dest_var, item._on_change)
+            
             data_dict = {'path': item._path,
                          'name': item._name,
                          'type': item.type(),
                          'value': value,
                          'age': self.disp_age(item.age()),
+                         'update_age': self.disp_age(item.update_age()),
                          'last_update': str(item.last_update()),
                          'last_change': str(item.last_change()),
                          'changed_by': changed_by,
                          'previous_value': prev_value,
                          'previous_age': prev_age,
+                         'previous_update_age': prev_update_age,
+                         'previous_update': str(item.prev_update()),
                          'previous_change': str(item.prev_change()),
                          'enforce_updates': enforce_updates,
                          'cache': cache,
                          'eval': html.escape(self.disp_str(item._eval)),
                          'eval_trigger': self.disp_str(item._eval_trigger),
+                         'on_update': html.escape(self.list_to_displaystring(on_update_list)),
+                         'on_change': html.escape(self.list_to_displaystring(on_change_list)),
                          'cycle': str(cycle),
                          'crontab': str(crontab),
                          'autotimer': self.disp_str(item._autotimer),
@@ -273,6 +342,7 @@ class BackendItems:
                          'config': json.dumps(item_conf_sorted),
                          'logics': json.dumps(logics),
                          'triggers': json.dumps(triggers),
+                         'filename': str(item._filename),
                          }
 
             # cast raw data to a string

@@ -5,30 +5,37 @@ from bs4 import BeautifulSoup
 
 import lib.item
 
-from plugins.backend import Backend as Root
+from plugins.backend import WebInterface as Root
 from plugins.backend.tests.cptestcase import BaseCherryPyTestCase
 from tests.mock.core import MockSmartHome
 
 
 def setUpModule():
-    bs = MockBackendServer()
-    sh = bs._sh
-    cherrypy.tree.mount(Root(backendserver=bs,developer_mode=True), '/')
-    cherrypy.engine.start()
+#    bs = MockBackendServer()
+#    sh = bs._sh
+#    cherrypy.tree.mount(Root(backendserver=bs,developer_mode=True), '/')
+#    cherrypy.engine.start()
+    pass
 setup_module = setUpModule
 
 
 def tearDownModule():
-    cherrypy.engine.exit()
+#    cherrypy.engine.exit()
+    pass
 teardown_module = tearDownModule
 
 
 class TestCherryPyApp(BaseCherryPyTestCase):
-    def test_backendIntegration(self):
-        response = self.request('index')
-        self.assertEqual(response.output_status, b'200 OK')
-        body = BeautifulSoup(response.body[0])
-        self.assertEqual( str(body.find("a", href="logics.html"))[:2], '<a' )
+    def test_blockly(self):
+        pass
+        # dummy, because tests are from the tightly coupled 1. try do integrate blockly 
+        # (before it became a seperate plugin)
+        
+#    def test_backendIntegration(self):
+#        response = self.request('index')
+#        self.assertEqual(response.output_status, b'200 OK')
+#        body = BeautifulSoup(response.body[0])
+#        self.assertEqual( str(body.find("a", href="logics.html"))[:2], '<a' )
         #self.assertEqual( str(body.find("a", href="logics_blockly.html"))[:2], '<a' )
 
 #     def test_logics_blockly_html(self):

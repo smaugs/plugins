@@ -61,6 +61,9 @@ The version of the web socket protocol can be specified. By default the plugin u
 #### acl
 The plugin provides by default read only (**`ro`**) access to every item. By changing the **`acl`** attribute to **`rw`** you could modify this default behaviour to gain write access to the items in smarthomeNG.
 
+#### querydef
+If set to True, the plugin can be queried by a websocket client (a visu) for the item- and logic-definitions.
+
 
 ### items.conf (deprecated) / items.yaml
 

@@ -10,7 +10,7 @@ plugin:
 #    keywords: iot xyz
     documentation: https://github.com/smarthomeNG/smarthome/wiki/Visu_Unterstuetzung        # url of documentation (wiki) page
 
-    version: 1.4.3                 # Plugin version
+    version: 1.4.4                 # Plugin version
     sh_minversion: 1.3c            # minimum shNG version to use this plugin
 #    sh_maxversion:                 # maximum shNG version to use this plugin (leave empty if latest)
     multi_instance: False          # plugin supports multi instance
@@ -56,13 +56,20 @@ parameters:
     
     wsproto:
         type: int
-        default: 3
+        default: 4
         valid_list:
           - 3
           - 4
         description:
             de: 'Verwendete Version des Websocket Protokolls'
             en: 'Used version of the websocket protocol'
+    
+    querydef:
+        type: bool
+        default: False
+        description:
+            de: 'Wenn dieser Wert auf True gesetzt wird, ist es Websocket Clients möglich Item- und Logik Definitionen abzufragen'
+            en: 'Websocket clients can query item- and logic definitions, if set to True'
     
 item_attributes:
     # Definition of item attributes defined by this plugin
